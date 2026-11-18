@@ -708,7 +708,7 @@ $("#logoutBtn").addEventListener("click", () => store.logout());
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#loginErr").textContent = "";
   try { await store.login($("#loginEmail").value, $("#loginPassword").value); await start(); }
-  catch(err){ $("#loginErr").textContent = "ログインできませんでした。メールアドレスとパスワードを確認してください。"; }
+  catch(err){ $("#loginErr").textContent = "ログインできませんでした: " + (err.message || err); }
 });
 async function start(){
   const sess = await store.session();
