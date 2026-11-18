@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CYJ 炭素会計</title>
+<script>
+/* ===== 設定 =====================================================
+   Supabase の「Project Settings → API」にある値を貼り付けてください。
+   空のままだとデモモード（データはこのブラウザの中だけに保存）で動きます。 */
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://rjnjnrajnmargqqpfhjp.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_N634dv4tn3mFyvPqdwbbTQ_DuNsnmNk",
+  ORG_NAME: "Climate Youth Japan"
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f6f6f3; --surface:#fcfcfb; --surface-2:#f0efec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --accent:#1c5cab; --accent-ink:#fff; --accent-soft:#e6eefa;
+  --good:#006300; --warn-bg:#fff4d6; --warn-ink:#7a5200; --bad:#c22f2f; --bad-bg:#fdecec;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300; --c7:#6250d6; --c8:#e34948; --c9:#a8a69e;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#242422;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+    --accent:#5598e7; --accent-ink:#0b0b0b; --accent-soft:#1d2a3b;
+    --good:#0ca30c; --warn-bg:#3a2e10; --warn-ink:#f5c860; --bad:#e66767; --bad-bg:#3a1a1a;
+    --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#0ca30c; --c7:#9085e9; --c8:#e66767; --c9:#6e6d68;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.6 system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+header{background:var(--surface);border-bottom:1px solid var(--ring);position:sticky;top:0;z-index:5}
+.bar{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px}
+.brand small{font-weight:400;color:var(--muted);font-size:12px}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:none;padding:7px 12px;border-radius:8px;cursor:pointer;color:var(--ink-2)}
+nav button[aria-current="page"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+nav button:hover{background:var(--surface-2)}
+.spacer{flex:1}
+.who{font-size:12px;color:var(--muted)}
+main{max-width:1180px;margin:0 auto;padding:20px}
+.banner{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:18px}
+.card h2{font-size:15px;margin:0 0 4px}
+.card .sub{color:var(--muted);font-size:12px;margin:0 0 12px}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+@media (max-width:860px){.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+.kpi .label{color:var(--ink-2);font-size:12px}
+.kpi .value{font-size:28px;font-weight:650;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.kpi .unit{font-size:13px;color:var(--ink-2);font-weight:400;margin-left:4px}
+.kpi .foot{color:var(--muted);font-size:12px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px}
+.filters label{display:flex;flex-direction:column;font-size:12px;color:var(--ink-2);gap:3px}
+select,input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],input[type=url],textarea{
+  background:var(--surface);border:1px solid var(--axis);border-radius:8px;padding:7px 10px;min-width:0}
+textarea{resize:vertical}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.btn{border:1px solid var(--axis);background:var(--surface);border-radius:8px;padding:7px 14px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:3px 9px;font-size:12px}
+.chartbox{position:relative;height:300px}
+.chartbox.tall{height:360px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:12px;white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:hover{background:var(--surface-2)}
+tr.clickable{cursor:pointer}
+.tablewrap{max-height:620px;overflow:auto;border-radius:8px}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.pill.ok{background:#e3f3e3;color:#0a5a0a}
+.pill.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.pill.off{text-decoration:line-through}
+@media (prefers-color-scheme: dark){.pill.ok{background:#16301a;color:#7fd37f}}
+.flag{color:var(--warn-ink);cursor:help}
+.form{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.form .f{display:flex;flex-direction:column;gap:4px}
+.form .f > span{font-size:12px;color:var(--ink-2);font-weight:600}
+.form .f > span em{font-style:normal;color:var(--bad);margin-left:2px}
+.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}.s6{grid-column:span 6}
+@media (max-width:760px){.form{grid-template-columns:1fr 1fr}.s2,.s3,.s4,.s6{grid-column:span 2}}
+.cats{display:flex;flex-wrap:wrap;gap:6px}
+.cats button{border:1px solid var(--axis);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;display:flex;align-items:center}
+.cats button[aria-pressed="true"]{border-color:var(--ink);background:var(--surface-2);font-weight:600}
+.factor-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;padding-right:4px}
+.factor-opt{border:1px solid var(--axis);border-radius:8px;padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;background:var(--surface)}
+.factor-opt[aria-pressed="true"]{border-color:var(--accent);outline:1px solid var(--accent);background:var(--accent-soft)}
+.factor-opt[disabled]{opacity:.5;cursor:not-allowed}
+.factor-opt .n{font-weight:600}
+.factor-opt .v{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:12px;text-align:right}
+.factor-opt .s{grid-column:1/-1;font-size:11px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--axis);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.calc{background:var(--surface-2);border-radius:10px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline}
+.calc .formula{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.calc .result{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums}
+.form .f.actions{flex-direction:row}
+.actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--page);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+.hidden{display:none!important}
+.login{max-width:380px;margin:60px auto}
+.login form{display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)}
+.err{color:var(--bad);font-size:13px}
+.note{font-size:12px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2);margin-bottom:8px}
+.issue{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:8px 12px;font-size:12px}
+dialog{border:1px solid var(--ring);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px;max-width:420px}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">🌱 CYJ 炭素会計 <small id="orgName"></small></div>
+    <nav id="nav" class="hidden">
+      <button data-view="dashboard">ダッシュボード</button>
+      <button data-view="entry">入力</button>
+      <button data-view="list">データ一覧</button>
+      <button data-view="factors">排出係数</button>
+    </nav>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button class="btn small hidden" id="logoutBtn">ログアウト</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner hidden" id="demoBanner">デモモードです。データはこのブラウザの中だけに保存され、ほかのメンバーとは共有されません。共有するには Supabase の設定が必要です（README 参照）。</div>
+
+  <!-- ログイン -->
+  <section id="view-login" class="hidden">
+    <div class="card login">
+      <h2>ログイン</h2>
+      <p class="sub">管理者が登録したメールアドレスとパスワードでログインしてください。</p>
+      <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="メールアドレス" required autocomplete="username">
+        <input type="password" id="loginPassword" placeholder="パスワード" required autocomplete="current-password">
+        <button class="btn primary" type="submit">ログイン</button>
+        <div class="err" id="loginErr"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ダッシュボード -->
+  <section id="view-dashboard" class="hidden">
+    <div class="filters">
+      <label>期間
+        <select id="fPeriod"></select>
+      </label>
+      <label>チーム
+        <select id="fTeam"><option value="">すべて</option></select>
+      </label>
+      <label>活動名に含む
+        <input type="text" id="fName" placeholder="例：合宿">
+      </label>
+      <span class="note">「対象外」の行は集計に含めません。</span>
+    </div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="card kpi"><div class="label">総排出量</div><div class="value" id="kTotal">–</div><div class="foot" id="kTotalKg"></div></div>
+      <div class="card kpi"><div class="label">登録件数</div><div class="value" id="kCount">–</div><div class="foot" id="kCountFoot"></div></div>
+      <div class="card kpi"><div class="label">要確認・未確認</div><div class="value" id="kCheck">–</div><div class="foot">確認が必要なデータ</div></div>
+      <div class="card kpi"><div class="label">日付が未設定</div><div class="value" id="kNoDate">–</div><div class="foot" id="kNoDateFoot"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>月別の排出量</h2>
+      <p class="sub">カテゴリ別の積み上げ（kg-CO₂e）。日付が未設定のデータは右端にまとめています。</p>
+      <div class="legend" id="monthLegend"></div>
+      <div class="chartbox tall"><canvas id="chMonth" aria-label="月別排出量グラフ"></canvas></div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h2>カテゴリ別</h2>
+        <p class="sub">排出量と構成比</p>
+        <div class="chartbox" style="height:220px"><canvas id="chCat" aria-label="カテゴリ別グラフ"></canvas></div>
+        <table style="margin-top:10px"><thead><tr><th>カテゴリ</th><th class="num">件数</th><th class="num">kg-CO₂e</th><th class="num">構成比</th></tr></thead><tbody id="catTable"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>活動別トップ10</h2>
+        <p class="sub">活動名ごとの合計（kg-CO₂e）</p>
+        <div class="chartbox tall"><canvas id="chAct" aria-label="活動別グラフ"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 入力 -->
+  <section id="view-entry" class="hidden">
+    <div class="card">
+      <h2 id="entryTitle">活動データを入力</h2>
+      <p class="sub">カテゴリを選ぶと排出係数の候補が出ます。係数を選んで活動量を入れると、排出量が自動で計算されます。</p>
+      <div class="issue hidden" id="entryIssue" style="margin-bottom:12px"></div>
+      <form id="entryForm" class="form" autocomplete="off">
+        <label class="f s2"><span>日付<em>*</em></span><input type="date" id="eDate" required></label>
+        <label class="f s2"><span>活動名<em>*</em></span><input type="text" id="eName" list="nameList" placeholder="例：春合宿、運営MTG" required><datalist id="nameList"></datalist></label>
+        <label class="f s2"><span>チーム</span><input type="text" id="eTeam" list="teamList" placeholder="例：通常活動"><datalist id="teamList"></datalist></label>
+
+        <div class="f s6"><span>カテゴリ<em>*</em></span><div class="cats" id="eCats"></div></div>
+
+        <div class="f s6"><span>排出係数<em>*</em></span>
+          <div class="factor-list" id="eFactors"><div class="muted">先にカテゴリを選んでください。</div></div>
+        </div>
+
+        <label class="f s2"><span id="eQtyLabel">活動量<em>*</em></span><input type="number" id="eQty" step="any" min="0" required inputmode="decimal"></label>
+        <label class="f s2" id="ePeopleWrap"><span>人数</span><input type="number" id="ePeople" step="any" min="0" value="1" inputmode="decimal"></label>
+        <div class="f s2" id="eTripWrap"><span>片道／往復</span>
+          <div class="seg" id="eTrip"><button type="button" data-v="1" aria-pressed="true">片道</button><button type="button" data-v="2" aria-pressed="false">往復</button></div>
+        </div>
+
+        <div class="f s6"><div class="calc" id="eCalc"><span class="muted">係数と活動量を入れると、ここに計算結果が出ます。</span></div></div>
+
+        <label class="f s3"><span>内容（経路・購入品など）</span><input type="text" id="eDesc" placeholder="例：品川駅〜腰越駅"></label>
+        <label class="f s3"><span>確認状況</span>
+          <select id="eStatus"><option>未確認</option><option>仮置き</option><option>要確認</option><option>確定</option><option>対象外</option></select>
+        </label>
+        <label class="f s6"><span>メモ（仮定・根拠など）</span><textarea id="eMemo" rows="2"></textarea></label>
+
+        <div class="f s6 actions">
+          <span class="err" id="entryErr"></span>
+          <button type="button" class="btn danger hidden" id="eDelete">削除</button>
+          <button type="button" class="btn" id="eCancel">クリア</button>
+          <button type="submit" class="btn primary" id="eSubmit">保存する</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- データ一覧 -->
+  <section id="view-list" class="hidden">
+    <div class="filters">
+      <label>検索<input type="text" id="lSearch" placeholder="活動名・内容・メモ"></label>
+      <label>カテゴリ<select id="lCat"><option value="">すべて</option></select></label>
+      <label>確認状況<select id="lStatus"><option value="">すべて</option><option>未確認</option><option>仮置き</option><option>要確認</option><option>確定</option><option>対象外</option></select></label>
+      <label>月<select id="lMonth"><option value="">すべて</option></select></label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="lIssue"> 移行時の注意ありのみ</label>
+      <div class="spacer"></div>
+      <button class="btn" id="csvBtn">CSVでダウンロード</button>
+    </div>
+    <div class="card">
+      <p class="sub" id="listSummary"></p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>日付</th><th>活動名</th><th>カテゴリ</th><th>係数</th><th class="num">活動量</th><th class="num">排出量 kg</th><th>状況</th><th></th></tr></thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 排出係数 -->
+  <section id="view-factors" class="hidden">
+    <div class="grid" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start">
+      <div class="card">
+        <h2>排出係数マスタ</h2>
+        <p class="sub">ここに登録した係数が入力画面の候補になります。係数を変えても、すでに入力したデータの排出量は変わりません（入力時の係数を保存しています）。</p>
+        <div class="tablewrap">
+          <table><thead><tr><th>カテゴリ</th><th>係数名</th><th class="num">係数</th><th>単位</th><th>出典</th><th></th></tr></thead><tbody id="factorBody"></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <h2 id="factorFormTitle">係数を追加</h2>
+        <p class="sub">出典名・URL・年度を必ず残してください。</p>
+        <form id="factorForm" class="form" style="grid-template-columns:1fr 1fr">
+          <label class="f s2"><span>係数ID<em>*</em></span><input type="text" id="xCode" required placeholder="例：TRN_TRAIN_KM_002"></label>
+          <label class="f"><span>カテゴリ<em>*</em></span><input type="text" id="xCat" list="catList" required><datalist id="catList"></datalist></label>
+          <label class="f"><span>小分類</span><input type="text" id="xSub"></label>
+          <label class="f s2"><span>係数名<em>*</em></span><input type="text" id="xName" required></label>
+          <label class="f"><span>係数（kg-CO₂e／単位）</span><input type="number" id="xValue" step="any" min="0"></label>
+          <label class="f"><span>活動量の単位<em>*</em></span><input type="text" id="xUnit" list="unitList" required placeholder="人km・円・人泊…"><datalist id="unitList"><option>人km</option><option>円</option><option>人泊</option><option>人時間</option><option>kWh</option><option>kg</option><option>台km</option></datalist></label>
+          <label class="f s2" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="xPerPerson"> 人数を掛ける（単位が「人km」「人泊」など1人あたりの場合）</label>
+          <label class="f s2"><span>出典名</span><input type="text" id="xSource"></label>
+          <label class="f s2"><span>出典URL</span><input type="url" id="xUrl"></label>
+          <label class="f"><span>年度・版</span><input type="text" id="xVersion"></label>
+          <label class="f" style="flex-direction:row;align-items:center;gap:8px;margin-top:20px"><input type="checkbox" id="xActive" checked> 候補に表示</label>
+          <label class="f s2"><span>メモ</span><textarea id="xNote" rows="2"></textarea></label>
+          <div class="f s2 actions"><span class="err" id="factorErr"></span><button type="button" class="btn" id="xCancel">クリア</button><button class="btn primary" type="submit">保存する</button></div>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="confirmDlg"><p id="confirmMsg" style="margin-top:0"></p><div class="actions"><button class="btn" id="confirmNo">キャンセル</button><button class="btn danger" id="confirmYes">削除する</button></div></dialog>
+<div class="toast" id="toast"></div>
+
+<script type="application/json" id="seed-factors">[{"code": "TRN_TRAIN_KM_001", "category": "交通", "subcategory": "鉄道", "name": "鉄道（国内）", "value": 0.017, "activity_unit": "人km", "per_person": true, "source_name": "国土交通省「運輸部門における二酸化炭素排出量」輸送量当たりCO2排出量（旅客）", "source_url": "https://www.mlit.go.jp/sogoseisaku/environment/sosei_environment_tk_000007.html", "version": "2024", "note": null}, {"code": "TRN_SHINKANSEN_KM_001", "category": "交通", "subcategory": "新幹線", "name": "新幹線", "value": 0.017, "activity_unit": "人km", "per_person": true, "source_name": "国土交通省「運輸部門における二酸化炭素排出量」輸送量当たりCO2排出量（旅客）", "source_url": "https://www.mlit.go.jp/sogoseisaku/environment/sosei_environment_tk_000007.html", "version": "2024", "note": "元マスタでは鉄道と同値"}, {"code": "TRN_BUS_KM_001", "category": "交通", "subcategory": "バス", "name": "バス", "value": 0.057, "activity_unit": "人km", "per_person": true, "source_name": "国土交通省「運輸部門における二酸化炭素排出量」輸送量当たりCO2排出量（旅客）", "source_url": "https://www.mlit.go.jp/sogoseisaku/environment/sosei_environment_tk_000007.html", "version": "2024", "note": null}, {"code": "TRN_CAR_KM_001", "category": "交通", "subcategory": "自動車", "name": "自動車（乗用車）", "value": 0.125, "activity_unit": "人km", "per_person": true, "source_name": "国土交通省「運輸部門における二酸化炭素排出量」輸送量当たりCO2排出量（旅客）", "source_url": "https://www.mlit.go.jp/sogoseisaku/environment/sosei_environment_tk_000007.html", "version": "2024", "note": "元マスタは係数単位が人km・活動量単位が台kmで不一致。人kmとして登録（要確認）"}, {"code": "TRN_AIR_KM_001", "category": "交通", "subcategory": "航空機", "name": "航空機", "value": 0.091, "activity_unit": "人km", "per_person": true, "source_name": "国土交通省「運輸部門における二酸化炭素排出量」輸送量当たりCO2排出量（旅客）", "source_url": "https://www.mlit.go.jp/sogoseisaku/environment/sosei_environment_tk_000007.html", "version": "2024", "note": null}, {"code": "TRN_RAIL_DE_DB_001", "category": "交通", "subcategory": "鉄道（海外）", "name": "ドイツ鉄道 長距離（DB自社グリーン電力）", "value": 0.0007, "activity_unit": "人km", "per_person": true, "source_name": "Deutsche Bahn, Integrierter Bericht 2025", "source_url": null, "version": "2025", "note": "元マスタは g/pkm（0.7）。kg に換算"}, {"code": "TRN_RAIL_DE_UBA_LONG_001", "category": "交通", "subcategory": "鉄道（海外）", "name": "ドイツ鉄道 長距離（UBA・独平均電源）", "value": 0.026, "activity_unit": "人km", "per_person": true, "source_name": "UBA TREMOD 6.71B (10/2025), 2024年値", "source_url": null, "version": "2024", "note": "元マスタは g/pkm（26）。本会計ではこちらを使用"}, {"code": "TRN_RAIL_DE_UBA_LOCAL_001", "category": "交通", "subcategory": "鉄道（海外）", "name": "ドイツ 近郊鉄道・Sバーン（UBA）", "value": 0.044, "activity_unit": "人km", "per_person": true, "source_name": "UBA TREMOD 6.71B (10/2025), 2024年値", "source_url": null, "version": "2024", "note": "元マスタは g/pkm（44）"}, {"code": "TRN_TRAM_DE_001", "category": "交通", "subcategory": "路面電車（海外）", "name": "ドイツ 路面電車（UBA）", "value": 0.042, "activity_unit": "人km", "per_person": true, "source_name": "UBA TREMOD 6.71B (10/2025), 2024年値", "source_url": null, "version": "2024", "note": "元マスタは g/pkm（42）"}, {"code": "LOD_STAY_NIGHT_001", "category": "宿泊・会場", "subcategory": "宿泊", "name": "宿泊（国内）", "value": 31.5, "activity_unit": "人泊", "per_person": true, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": "宿泊料金の平均値を掛けた係数。変更が必要な可能性あり（元マスタのメモ）"}, {"code": "LOD_STAY_DE_001", "category": "宿泊・会場", "subcategory": "宿泊", "name": "宿泊（ドイツ・1ゲスト配分）", "value": 1.65, "activity_unit": "人泊", "per_person": true, "source_name": "UK Government GHG Conversion Factors 2025, Germany, Room per night", "source_url": null, "version": "2025", "note": null}, {"code": "LOD_STAY_BD_001", "category": "宿泊・会場", "subcategory": "宿泊", "name": "宿泊（バングラデシュ）", "value": 37.2, "activity_unit": "人泊", "per_person": true, "source_name": "出典未登録（既存データから移行）", "source_url": null, "version": null, "note": "既存シートで使われていた値。出典を登録してください"}, {"code": "FOOD_RICE_001", "category": "食事", "subcategory": "通常食", "name": "米", "value": 0.00537, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_BREAD_001", "category": "食事", "subcategory": "通常食", "name": "パン類", "value": 0.00354, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_SNACK_001", "category": "食事", "subcategory": "通常食", "name": "菓子類", "value": 0.00326, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_SEASONING_001", "category": "食事", "subcategory": "通常食", "name": "調味料", "value": 0.00339, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_OTHER_MEAL_001", "category": "食事", "subcategory": "通常食", "name": "その他の食料品", "value": 0.00421, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_TEA_COFFEE_001", "category": "食事", "subcategory": "通常食", "name": "茶・コーヒー類", "value": 0.00352, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_DRINK_001", "category": "食事", "subcategory": "通常食", "name": "清涼飲料水", "value": 0.00263, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_BENTO_001", "category": "食事", "subcategory": "通常食", "name": "惣菜・寿司・弁当類", "value": 0.00351, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_DAIRY_PRODUCT_001", "category": "食事", "subcategory": "通常食", "name": "酪農品", "value": 0.00618, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_VEGETABLE_001", "category": "食事", "subcategory": "通常食", "name": "野菜類", "value": 0.00328, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_BEANS_001", "category": "食事", "subcategory": "通常食", "name": "豆類", "value": 0.00469, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_BEER_001", "category": "食事", "subcategory": "通常食", "name": "ビール", "value": 0.0016, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_WHISKY_001", "category": "食事", "subcategory": "通常食", "name": "ウイスキー", "value": 0.00185, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_OTHER_ALCOHOL_001", "category": "食事", "subcategory": "通常食", "name": "その他のアルコール類", "value": 0.00212, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": null}, {"code": "FOOD_PLANT_001", "category": "食事", "subcategory": "プラントベース", "name": "プラントベース食（豆類で代替）", "value": 0.00469, "activity_unit": "円", "per_person": false, "source_name": "環境省 サプライチェーン排出原単位データベース Ver.3.6（2026年4月）", "source_url": "https://www.env.go.jp/earth/ondanka/supply_chain/gvc/estimate_05.html", "version": "2026/Ver.3.6", "note": "代替肉の原材料として多い豆類の係数を採用"}, {"code": "ONL_PERSON_HOUR_001", "category": "オンライン会議", "subcategory": "会議", "name": "オンライン会議（PC製造按分＋通信）", "value": 0.065503, "activity_unit": "人時間", "per_person": true, "source_name": "Faber, G. (2021) A framework to estimate emissions from virtual conferences", "source_url": null, "version": "2021", "note": "既存シートの計算式を1係数に集約: PC製造 0.03101 + 通信 0.03449 kg/人時間"}, {"code": "ONL_ZOOM_HOUR_001", "category": "オンライン会議", "subcategory": "会議", "name": "オンライン会議（Zoom研究値・参考）", "value": 0.15, "activity_unit": "人時間", "per_person": true, "source_name": "Obringer et al. (2021) The overlooked environmental footprint of increasing Internet use", "source_url": "https://www.sciencedirect.com/science/article/abs/pii/S0921344920307072", "version": "2021", "note": "参加者数按分のルールを要確認（元マスタのメモ）"}, {"code": "PWR_ELEC_KWH_001", "category": "電力", "subcategory": "購入電力", "name": "電力使用", "value": null, "activity_unit": "kWh", "per_person": false, "source_name": "要入力", "source_url": null, "version": null, "note": "係数未登録。年度・地域・メニューに注意"}, {"code": "WST_KG_001", "category": "廃棄物", "subcategory": "一般廃棄物", "name": "廃棄物", "value": null, "activity_unit": "kg", "per_person": false, "source_name": "要入力", "source_url": null, "version": null, "note": "係数未登録"}, {"code": "SUP_YEN_001", "category": "備品・消耗品", "subcategory": "金額ベース", "name": "備品・消耗品購入", "value": null, "activity_unit": "円", "per_person": false, "source_name": "要入力", "source_url": null, "version": null, "note": "係数未登録"}, {"code": "SAAS_YEN_001", "category": "SaaS・クラウド", "subcategory": "金額ベース", "name": "SaaS利用", "value": null, "activity_unit": "円", "per_person": false, "source_name": "要入力", "source_url": null, "version": null, "note": "係数未登録"}, {"code": "LOD_VENUE_KWH_LEGACY", "category": "宿泊・会場", "subcategory": "会場", "name": "会場電力（既存データ・要確認）", "value": 0.00043, "activity_unit": "kWh", "per_person": false, "source_name": "出典未登録（既存データから移行）", "source_url": null, "version": null, "note": "既存シートの値 0.00043。電力係数(kg/kWh)としては桁が小さく要確認"}]</script>
+<script type="application/json" id="seed-activities">[]</script>
+
+<script>
+"use strict";
+const CFG = window.APP_CONFIG || {};
+const CATEGORY_ORDER = ["交通","宿泊・会場","食事","オンライン会議","電力","廃棄物","備品・消耗品","SaaS・クラウド"];
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n, d=2) => n == null || isNaN(n) ? "–" : Number(n).toLocaleString("ja-JP", {minimumFractionDigits:d, maximumFractionDigits:d});
+const fmtF = n => n == null || isNaN(n) ? "–" : Number(n).toLocaleString("ja-JP", {maximumSignificantDigits:6});
+const fmtQ = n => n == null || isNaN(n) ? "–" : Number(n).toLocaleString("ja-JP", {maximumFractionDigits:4});
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function catColor(cat){ const i = CATEGORY_ORDER.indexOf(cat); return cssVar(i >= 0 ? `--c${i+1}` : "--c9"); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2400); }
+function confirmBox(msg){ return new Promise(res=>{ const d=$("#confirmDlg"); $("#confirmMsg").textContent=msg; d.showModal();
+  const done=v=>{d.close(); $("#confirmYes").onclick=$("#confirmNo").onclick=null; res(v);};
+  $("#confirmYes").onclick=()=>done(true); $("#confirmNo").onclick=()=>done(false); }); }
+
+/* ---------- 計算ロジック（ここだけで排出量を計算する） ---------- */
+// 入力欄の単位：1人あたりの単位（人km・人泊）は「人」を外し、時間は分で入力する
+function inputUnit(f){ if(!f) return ""; let u = f.per_person ? f.activity_unit.replace(/^人/,"") : f.activity_unit; return u === "時間" ? "分" : u; }
+function inputScale(f){ return inputUnit(f) === "分" ? 1/60 : 1; }
+function computeAmount(f, category, qty, people, trip){
+  if(!f || qty === "" || qty == null || isNaN(qty)) return null;
+  let a = Number(qty) * inputScale(f);
+  if(f.per_person) a *= Number(people || 0);
+  if(category === "交通") a *= Number(trip || 1);
+  return a;
+}
+const emissionsOf = a => (a.activity_amount != null && a.factor_value != null) ? a.activity_amount * a.factor_value : null;
+
+/* ---------- データ保存先：Supabase またはデモ（ブラウザ内） ---------- */
+const store = {
+  mode: "demo", sb: null, factors: [], activities: [],
+  async init(){
+    if(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY){
+      this.mode = "supabase";
+      await new Promise((ok, ng) => { const s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"; s.onload=ok; s.onerror=()=>ng(new Error("Supabase ライブラリを読み込めませんでした")); document.head.appendChild(s); });
+      this.sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+    }
+  },
+  async session(){ if(this.mode==="demo") return {user:{email:"デモユーザー"}}; const {data} = await this.sb.auth.getSession(); return data.session; },
+  async login(email, pw){ const {error} = await this.sb.auth.signInWithPassword({email, password:pw}); if(error) throw error; },
+  async logout(){ if(this.sb) await this.sb.auth.signOut(); location.reload(); },
+  async load(){
+    if(this.mode === "supabase"){
+      const [f, a] = await Promise.all([
+        this.sb.from("emission_factors").select("*").order("category").order("code"),
+        this.sb.from("activities").select("*").order("activity_date", {ascending:false, nullsFirst:false}).order("id", {ascending:false})
+      ]);
+      if(f.error) throw f.error; if(a.error) throw a.error;
+      this.factors = f.data; this.activities = a.data;
+    } else {
+      const saved = demoStorage.get();
+      if(saved){ this.factors = saved.factors; this.activities = saved.activities; }
+      else {
+        const seedF = JSON.parse($("#seed-factors")?.textContent || "[]");
+        const seedA = JSON.parse($("#seed-activities")?.textContent || "[]");
+        this.factors = seedF.map((f,i) => ({id:i+1, is_active:true, ...f}));
+        const byCode = Object.fromEntries(this.factors.map(f => [f.code, f.id]));
+        this.activities = seedA.map((a,i) => ({id:i+1, ...a, factor_id: a.factor_code ? byCode[a.factor_code] : null}));
+        this.persistDemo();
+      }
+    }
+  },
+  persistDemo(){ demoStorage.set({factors:this.factors, activities:this.activities}); },
+  async saveActivity(row){
+    if(this.mode === "supabase"){
+      const {id, emissions_kg, factor_code, ...clean} = row;   // id と排出量はDB側で管理
+      const q = id ? this.sb.from("activities").update(clean).eq("id", id) : this.sb.from("activities").insert(clean);
+      const {data, error} = await q.select().single(); if(error) throw error;
+      const i = this.activities.findIndex(x => x.id === data.id);
+      if(i >= 0) this.activities[i] = data; else this.activities.unshift(data);
+    } else {
+      if(row.id){ const i=this.activities.findIndex(x=>x.id===row.id); this.activities[i] = {...this.activities[i], ...row}; }
+      else { row.id = Math.max(0, ...this.activities.map(x=>x.id)) + 1; this.activities.unshift(row); }
+      this.persistDemo();
+    }
+  },
+  async deleteActivity(id){
+    if(this.mode === "supabase"){ const {error} = await this.sb.from("activities").delete().eq("id", id); if(error) throw error; }
+    this.activities = this.activities.filter(x => x.id !== id);
+    if(this.mode === "demo") this.persistDemo();
+  },
+  async saveFactor(f){
+    if(this.mode === "supabase"){
+      const {id, ...clean} = f;
+      const q = id ? this.sb.from("emission_factors").update(clean).eq("id", id) : this.sb.from("emission_factors").insert(clean);
+      const {data, error} = await q.select().single(); if(error) throw error;
+      const i = this.factors.findIndex(x => x.id === data.id);
+      if(i >= 0) this.factors[i] = data; else this.factors.push(data);
+    } else {
+      if(this.factors.some(x => x.code === f.code && x.id !== f.id)) throw new Error("同じ係数IDがすでにあります");
+      if(f.id){ const i=this.factors.findIndex(x=>x.id===f.id); this.factors[i] = {...this.factors[i], ...f}; }
+      else { f.id = Math.max(0, ...this.factors.map(x=>x.id)) + 1; this.factors.push(f); }
+      this.persistDemo();
+    }
+  }
+};
+const demoStorage = {
+  key: "cyj-carbon-demo-v1",
+  get(){ try { return JSON.parse(localStorage.getItem(this.key)); } catch(e){ return null; } },
+  set(v){ try { localStorage.setItem(this.key, JSON.stringify(v)); } catch(e){} }
+};
+const factorById = id => store.factors.find(f => f.id === id);
+
+/* ---------- 画面切り替え ---------- */
+let currentView = "dashboard";
+function show(view){
+  currentView = view;
+  $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "view-" + view));
+  $$("#nav button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
+  if(view === "dashboard") renderDashboard();
+  if(view === "list") renderList();
+  if(view === "factors") renderFactors();
+  window.scrollTo({top:0});
+}
+
+/* ---------- ダッシュボード ---------- */
+const charts = {};
+function fiscalYear(d){ const [y,m] = d.split("-").map(Number); return m >= 4 ? y : y - 1; }
+function periodOptions(){
+  const years = [...new Set(store.activities.filter(a=>a.activity_date).map(a=>fiscalYear(a.activity_date)))].sort((a,b)=>b-a);
+  const sel = $("#fPeriod"), cur = sel.value;
+  sel.innerHTML = `<option value="all">全期間</option>` + years.map(y=>`<option value="fy${y}">${y}年度（${y}年4月〜${y+1}年3月）</option>`).join("");
+  if([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  const teams = [...new Set(store.activities.map(a=>a.team).filter(Boolean))].sort();
+  const ts = $("#fTeam"), tc = ts.value;
+  ts.innerHTML = `<option value="">すべて</option>` + teams.map(t=>`<option>${esc(t)}</option>`).join("");
+  ts.value = tc;
+}
+function dashRows(){
+  const p = $("#fPeriod").value, team = $("#fTeam").value, name = $("#fName").value.trim();
+  return store.activities.filter(a => {
+    if(a.status === "対象外") return false;
+    if(team && a.team !== team) return false;
+    if(name && !(a.activity_name || "").includes(name)) return false;
+    if(p && p.startsWith("fy")) return a.activity_date && fiscalYear(a.activity_date) === Number(p.slice(2));
+    return true;
+  });
+}
+function chartDefaults(){
+  Chart.defaults.font.family = 'system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = cssVar("--muted");
+  Chart.defaults.borderColor = cssVar("--grid");
+  Chart.defaults.plugins.tooltip.backgroundColor = cssVar("--surface");
+  Chart.defaults.plugins.tooltip.titleColor = cssVar("--ink");
+  Chart.defaults.plugins.tooltip.bodyColor = cssVar("--ink-2");
+  Chart.defaults.plugins.tooltip.borderColor = cssVar("--axis");
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.boxPadding = 4;
+}
+function drawChart(id, config){ if(charts[id]) charts[id].destroy(); charts[id] = new Chart($("#"+id), config); }
+function renderDashboard(){
+  if(typeof Chart === "undefined"){ $("#kTotal").textContent = "グラフを読み込めませんでした"; return; }
+  chartDefaults(); periodOptions();
+  const rows = dashRows();
+  const total = rows.reduce((s,a)=>s + (emissionsOf(a) || 0), 0);
+  $("#kTotal").innerHTML = total >= 1000 ? `${fmt(total/1000, 2)}<span class="unit">t-CO₂e</span>` : `${fmt(total, 1)}<span class="unit">kg-CO₂e</span>`;
+  $("#kTotalKg").textContent = `${fmt(total, 1)} kg-CO₂e`;
+  $("#kCount").textContent = rows.length.toLocaleString("ja-JP");
+  const noEm = rows.filter(a => emissionsOf(a) == null).length;
+  $("#kCountFoot").textContent = noEm ? `うち排出量が未計算 ${noEm} 件` : "すべて計算済み";
+  $("#kCheck").textContent = rows.filter(a => a.status === "要確認" || a.status === "未確認").length;
+  const nd = rows.filter(a => !a.activity_date);
+  $("#kNoDate").textContent = nd.length;
+  $("#kNoDateFoot").textContent = nd.length ? `${fmt(nd.reduce((s,a)=>s+(emissionsOf(a)||0),0),1)} kg が月別グラフで「日付なし」に` : "月別に集計できています";
+
+  const cats = CATEGORY_ORDER.filter(c => rows.some(a=>a.category===c)).concat([...new Set(rows.map(a=>a.category))].filter(c=>!CATEGORY_ORDER.includes(c)));
+  // 月別
+  const months = [...new Set(rows.filter(a=>a.activity_date).map(a=>a.activity_date.slice(0,7)))].sort();
+  const labels = months.map(m => `${m.slice(0,4)}年${Number(m.slice(5))}月`);
+  if(nd.length) labels.push("日付なし");
+  const keyOf = a => a.activity_date ? a.activity_date.slice(0,7) : "none";
+  const keys = months.concat(nd.length ? ["none"] : []);
+  const surface = cssVar("--surface");
+  drawChart("chMonth", { type:"bar",
+    data:{ labels, datasets: cats.map(c => ({ label:c, backgroundColor:catColor(c), borderColor:surface, borderWidth:{top:2}, borderSkipped:"bottom", borderRadius:{topLeft:4, topRight:4}, maxBarThickness:46,
+      data: keys.map(k => rows.filter(a=>a.category===c && keyOf(a)===k).reduce((s,a)=>s+(emissionsOf(a)||0),0)) })) },
+    options:{ maintainAspectRatio:false, interaction:{mode:"index", intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{ itemSort:(a,b)=>b.raw-a.raw, filter:i=>i.raw>0, callbacks:{ label:i=>` ${i.dataset.label}: ${fmt(i.raw,2)} kg`, footer:items=>`合計: ${fmt(items.reduce((s,i)=>s+i.raw,0),2)} kg` } } },
+      scales:{ x:{stacked:true, grid:{display:false}, border:{color:cssVar("--axis")}}, y:{stacked:true, beginAtZero:true, border:{display:false}, title:{display:true, text:"kg-CO₂e"}, ticks:{callback:v=>v.toLocaleString("ja-JP")}} } } });
+  $("#monthLegend").innerHTML = cats.map(c=>`<span><span class="swatch" style="background:${catColor(c)}"></span>${esc(c)}</span>`).join("");
+
+  // カテゴリ別
+  const catSum = cats.map(c => ({c, n: rows.filter(a=>a.category===c).length, v: rows.filter(a=>a.category===c).reduce((s,a)=>s+(emissionsOf(a)||0),0)})).sort((a,b)=>b.v-a.v);
+  drawChart("chCat", { type:"bar",
+    data:{ labels: catSum.map(x=>x.c), datasets:[{ data: catSum.map(x=>x.v), backgroundColor: catSum.map(x=>catColor(x.c)), borderRadius:{topRight:4, bottomRight:4}, borderSkipped:"left", maxBarThickness:22 }] },
+    options:{ indexAxis:"y", maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>` ${fmt(i.raw,2)} kg（${total?fmt(i.raw/total*100,1):0}%）`}}},
+      scales:{ x:{beginAtZero:true, border:{display:false}, ticks:{callback:v=>v.toLocaleString("ja-JP")}}, y:{grid:{display:false}, border:{color:cssVar("--axis")}} } } });
+  $("#catTable").innerHTML = catSum.map(x=>`<tr><td><span class="swatch" style="background:${catColor(x.c)}"></span>${esc(x.c)}</td><td class="num">${x.n}</td><td class="num">${fmt(x.v,2)}</td><td class="num">${total?fmt(x.v/total*100,1):"0.0"}%</td></tr>`).join("")
+    + `<tr><th>合計</th><th class="num">${rows.length}</th><th class="num">${fmt(total,2)}</th><th class="num">100%</th></tr>`;
+
+  // 活動別
+  const byName = {};
+  rows.forEach(a => { const k=a.activity_name||"（名称なし）"; byName[k] = (byName[k]||0) + (emissionsOf(a)||0); });
+  const top = Object.entries(byName).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  drawChart("chAct", { type:"bar",
+    data:{ labels: top.map(t=>t[0].length>16?t[0].slice(0,16)+"…":t[0]), datasets:[{ data: top.map(t=>t[1]), backgroundColor: cssVar("--c1"), borderRadius:{topRight:4, bottomRight:4}, borderSkipped:"left", maxBarThickness:22 }] },
+    options:{ indexAxis:"y", maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{title:i=>top[i[0].dataIndex][0], label:i=>` ${fmt(i.raw,2)} kg-CO₂e`}}},
+      scales:{ x:{beginAtZero:true, border:{display:false}, ticks:{callback:v=>v.toLocaleString("ja-JP")}}, y:{grid:{display:false}, border:{color:cssVar("--axis")}} } } });
+}
+["fPeriod","fTeam"].forEach(id => $("#"+id).addEventListener("change", renderDashboard));
+$("#fName").addEventListener("input", () => { clearTimeout(renderDashboard._t); renderDashboard._t = setTimeout(renderDashboard, 250); });
+
+/* ---------- 入力フォーム ---------- */
+const entry = { id:null, category:null, factorId:null, trip:1, legacy:null };
+function categoriesAvailable(){ return CATEGORY_ORDER.concat([...new Set(store.factors.map(f=>f.category))].filter(c=>!CATEGORY_ORDER.includes(c))); }
+function renderCats(){
+  $("#eCats").innerHTML = categoriesAvailable().map(c => `<button type="button" data-c="${esc(c)}" aria-pressed="${entry.category===c}"><span class="swatch" style="background:${catColor(c)}"></span>${esc(c)}</button>`).join("");
+}
+function renderFactorChoices(){
+  const box = $("#eFactors");
+  if(!entry.category){ box.innerHTML = `<div class="muted">先にカテゴリを選んでください。</div>`; return; }
+  const list = store.factors.filter(f => f.category === entry.category && (f.is_active !== false || f.id === entry.factorId));
+  let html = "";
+  if(entry.legacy) html += `<button type="button" class="factor-opt" data-f="legacy" aria-pressed="${entry.factorId==='legacy'}"><span class="n">移行データの係数をそのまま使う</span><span class="v">${fmtF(entry.legacy.value)} kg／${esc(entry.legacy.unit||"単位不明")}</span><span class="s">係数マスタに一致する係数がなかったデータです。マスタの係数を選び直すこともできます。</span></button>`;
+  html += list.map(f => `<button type="button" class="factor-opt" data-f="${f.id}" aria-pressed="${entry.factorId===f.id}" ${f.value==null?"disabled":""}>
+      <span class="n">${esc(f.name)}${f.subcategory?` <span class="muted" style="font-weight:400">· ${esc(f.subcategory)}</span>`:""}</span>
+      <span class="v">${f.value==null ? "係数未登録" : `${fmtF(f.value)} kg-CO₂e／${esc(f.activity_unit)}`}</span>
+      <span class="s">${esc(f.source_name||"出典未登録")}${f.version?`（${esc(f.version)}）`:""}${f.note?` ― ${esc(f.note)}`:""}</span></button>`).join("");
+  box.innerHTML = html || `<div class="muted">このカテゴリの係数がまだありません。「排出係数」タブで追加してください。</div>`;
+}
+function selectedFactor(){
+  if(entry.factorId === "legacy") return { id:null, value: entry.legacy.value, activity_unit: entry.legacy.unit || "", per_person:false, name:"移行データの係数" };
+  return factorById(entry.factorId);
+}
+function updateEntryUI(){
+  const f = selectedFactor();
+  const unit = inputUnit(f);
+  $("#eQtyLabel").innerHTML = `活動量${unit?`（${esc(unit)}）`:""}<em>*</em>`;
+  $("#eQty").placeholder = unit === "km" ? "片道の距離" : unit === "円" ? "金額" : unit === "分" ? "会議の時間（分）" : unit === "泊" ? "泊数" : "";
+  $("#ePeopleWrap").classList.toggle("hidden", !(f && f.per_person));
+  $("#eTripWrap").classList.toggle("hidden", entry.category !== "交通");
+  $$("#eTrip button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.v) === entry.trip)));
+  const qty = $("#eQty").value, people = $("#ePeople").value;
+  const amt = computeAmount(f, entry.category, qty, people, entry.trip);
+  const calc = $("#eCalc");
+  if(!f || amt == null){ calc.innerHTML = `<span class="muted">${!f ? "排出係数を選んでください。" : "活動量を入れると、ここに計算結果が出ます。"}</span>`; return; }
+  const parts = [`${fmtQ(qty)} ${esc(unit)}`];
+  if(unit === "分") parts[0] += ` ÷ 60`;
+  if(f.per_person) parts.push(`${fmtQ(people)}人`);
+  if(entry.category === "交通" && entry.trip === 2) parts.push("往復 2");
+  const em = amt * f.value;
+  calc.innerHTML = `<span class="formula">${parts.join(" × ")} = <b>${fmtQ(amt)} ${esc(f.activity_unit)}</b> × ${fmtF(f.value)} kg-CO₂e／${esc(f.activity_unit)} =</span><span class="result">${fmt(em, 3)} kg-CO₂e</span>`;
+}
+function resetEntry(){
+  Object.assign(entry, {id:null, category:null, factorId:null, trip:1, legacy:null});
+  $("#entryForm").reset(); $("#eDate").value = new Date().toLocaleDateString("sv-SE"); $("#ePeople").value = 1;
+  $("#entryTitle").textContent = "活動データを入力"; $("#eSubmit").textContent = "保存する";
+  $("#eDelete").classList.add("hidden"); $("#entryIssue").classList.add("hidden"); $("#entryErr").textContent = "";
+  fillDatalists(); renderCats(); renderFactorChoices(); updateEntryUI();
+}
+function fillDatalists(){
+  const names = [...new Set(store.activities.map(a=>a.activity_name).filter(Boolean))].slice(0,200);
+  $("#nameList").innerHTML = names.map(n=>`<option value="${esc(n)}">`).join("");
+  const teams = [...new Set(store.activities.map(a=>a.team).filter(Boolean))];
+  $("#teamList").innerHTML = teams.map(n=>`<option value="${esc(n)}">`).join("");
+}
+function editActivity(id){
+  const a = store.activities.find(x=>x.id===id); if(!a) return;
+  resetEntry();
+  const f = factorById(a.factor_id);
+  Object.assign(entry, { id:a.id, category:a.category, trip:a.trip_multiplier||1,
+    factorId: f ? f.id : (a.factor_value != null ? "legacy" : null),
+    legacy: (!f && a.factor_value != null) ? {value:a.factor_value, unit:a.factor_unit} : null });
+  $("#eDate").value = a.activity_date || ""; $("#eName").value = a.activity_name || ""; $("#eTeam").value = a.team || "";
+  $("#eDesc").value = a.description || ""; $("#eStatus").value = a.status || "未確認"; $("#eMemo").value = a.memo || "";
+  $("#ePeople").value = a.people ?? 1;
+  const sf = selectedFactor();
+  $("#eQty").value = a.quantity != null ? +(a.quantity / (sf ? inputScale(sf) : 1)).toFixed(6) : "";
+  $("#entryTitle").textContent = "活動データを編集"; $("#eSubmit").textContent = "変更を保存";
+  $("#eDelete").classList.remove("hidden");
+  const notes = [a.migration_issue && `移行時の注意: ${a.migration_issue}`, a.source_note].filter(Boolean);
+  $("#entryIssue").classList.toggle("hidden", !notes.length); $("#entryIssue").innerHTML = notes.map(esc).join("<br>");
+  renderCats(); renderFactorChoices(); updateEntryUI(); show("entry");
+}
+$("#eCats").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if(!b) return;
+  if(entry.category !== b.dataset.c){ entry.category = b.dataset.c; entry.factorId = entry.legacy && entry.category === store.activities.find(x=>x.id===entry.id)?.category ? "legacy" : null;
+    const only = store.factors.filter(f=>f.category===entry.category && f.is_active!==false && f.value!=null);
+    if(!entry.factorId && only.length === 1) entry.factorId = only[0].id; }
+  renderCats(); renderFactorChoices(); updateEntryUI(); });
+$("#eFactors").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if(!b || b.disabled) return;
+  entry.factorId = b.dataset.f === "legacy" ? "legacy" : Number(b.dataset.f); renderFactorChoices(); updateEntryUI(); });
+$("#eTrip").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; entry.trip = Number(b.dataset.v); updateEntryUI(); });
+["eQty","ePeople"].forEach(id => $("#"+id).addEventListener("input", updateEntryUI));
+$("#eCancel").addEventListener("click", resetEntry);
+$("#entryForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("#entryErr").textContent = "";
+  const f = selectedFactor();
+  if(!entry.category) return $("#entryErr").textContent = "カテゴリを選んでください";
+  if(!f) return $("#entryErr").textContent = "排出係数を選んでください";
+  const qty = $("#eQty").value; if(qty === "" || Number(qty) < 0) return $("#entryErr").textContent = "活動量を入れてください";
+  const people = f.per_person ? Number($("#ePeople").value || 0) : 1;
+  const trip = entry.category === "交通" ? entry.trip : 1;
+  const amount = computeAmount(f, entry.category, qty, people, trip);
+  const orig = entry.id ? store.activities.find(x=>x.id===entry.id) : null;
+  const row = {
+    activity_date: $("#eDate").value || null, activity_name: $("#eName").value.trim(), team: $("#eTeam").value.trim() || null,
+    description: $("#eDesc").value.trim() || null, category: entry.category,
+    factor_id: f.id ?? null, factor_value: f.value, factor_unit: f.activity_unit,
+    quantity: Number(qty) * inputScale(f), people, trip_multiplier: trip, activity_amount: amount,
+    status: $("#eStatus").value, memo: $("#eMemo").value.trim() || null
+  };
+  if(entry.id) row.id = entry.id;
+  if(store.mode === "demo") row.emissions_kg = amount * f.value;
+  try {
+    $("#eSubmit").disabled = true;
+    await store.saveActivity(row);
+    toast(`${entry.id ? "更新" : "保存"}しました（${fmt(amount * f.value, 3)} kg-CO₂e）`);
+    const wasEdit = !!entry.id; const keep = {date:row.activity_date, name:row.activity_name, team:row.team};
+    resetEntry();
+    if(wasEdit){ show("list"); }
+    else { $("#eDate").value = keep.date || ""; $("#eName").value = keep.name; $("#eTeam").value = keep.team || ""; $("#eName").focus(); }
+  } catch(err){ $("#entryErr").textContent = "保存できませんでした: " + (err.message || err); }
+  finally { $("#eSubmit").disabled = false; }
+});
+$("#eDelete").addEventListener("click", async () => {
+  if(!entry.id || !(await confirmBox("このデータを削除します。元に戻せません。よろしいですか？"))) return;
+  try { await store.deleteActivity(entry.id); toast("削除しました"); resetEntry(); show("list"); }
+  catch(err){ $("#entryErr").textContent = "削除できませんでした: " + (err.message || err); }
+});
+
+/* ---------- データ一覧 ---------- */
+function listRows(){
+  const s = $("#lSearch").value.trim(), c = $("#lCat").value, st = $("#lStatus").value, m = $("#lMonth").value, iss = $("#lIssue").checked;
+  return store.activities.filter(a =>
+    (!s || [a.activity_name, a.description, a.memo, a.team].some(x => (x||"").includes(s))) &&
+    (!c || a.category === c) && (!st || a.status === st) && (!iss || a.migration_issue) &&
+    (!m || (m === "none" ? !a.activity_date : (a.activity_date||"").startsWith(m)))
+  ).sort((a,b) => (b.activity_date||"").localeCompare(a.activity_date||"") || b.id - a.id);
+}
+function statusPill(s){ const cls = s==="確定"?"ok":(s==="要確認"||s==="未確認")?"warn":s==="対象外"?"off":""; return `<span class="pill ${cls}">${esc(s||"未確認")}</span>`; }
+function renderList(){
+  const cats = [...new Set(store.activities.map(a=>a.category))];
+  const lc = $("#lCat"), lcv = lc.value; lc.innerHTML = `<option value="">すべて</option>` + categoriesAvailable().filter(c=>cats.includes(c)).map(c=>`<option>${esc(c)}</option>`).join(""); lc.value = lcv;
+  const months = [...new Set(store.activities.filter(a=>a.activity_date).map(a=>a.activity_date.slice(0,7)))].sort().reverse();
+  const lm = $("#lMonth"), lmv = lm.value; lm.innerHTML = `<option value="">すべて</option>` + months.map(x=>`<option value="${x}">${x.replace("-","年")}月</option>`).join("") + `<option value="none">日付なし</option>`; lm.value = lmv;
+  const rows = listRows();
+  const sum = rows.reduce((s,a)=>s+(emissionsOf(a)||0),0);
+  $("#listSummary").textContent = `${rows.length} 件 ／ 合計 ${fmt(sum,2)} kg-CO₂e（行をクリックすると編集できます）`;
+  $("#listBody").innerHTML = rows.map(a => {
+    const f = factorById(a.factor_id);
+    return `<tr class="clickable" data-id="${a.id}">
+      <td style="white-space:nowrap">${a.activity_date ? esc(a.activity_date) : '<span class="muted">日付なし</span>'}</td>
+      <td>${esc(a.activity_name)}${a.description?`<div class="note">${esc(a.description.length>60?a.description.slice(0,60)+"…":a.description)}</div>`:""}</td>
+      <td style="white-space:nowrap"><span class="swatch" style="background:${catColor(a.category)}"></span>${esc(a.category)}</td>
+      <td>${f ? esc(f.name) : a.factor_value!=null ? `<span class="muted">移行値 ${fmtF(a.factor_value)}</span>` : '<span class="muted">未設定</span>'}</td>
+      <td class="num">${fmtQ(a.activity_amount)} <span class="muted">${esc(a.factor_unit||"")}</span></td>
+      <td class="num">${fmt(emissionsOf(a),3)}</td>
+      <td>${statusPill(a.status)}</td>
+      <td>${a.migration_issue ? `<span class="flag" title="${esc(a.migration_issue)}">⚠</span>` : ""}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="muted">該当するデータがありません</td></tr>`;
+}
+["lSearch","lCat","lStatus","lMonth","lIssue"].forEach(id => $("#"+id).addEventListener(id==="lSearch"?"input":"change", renderList));
+$("#listBody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if(tr) editActivity(Number(tr.dataset.id)); });
+$("#csvBtn").addEventListener("click", () => {
+  const head = ["日付","活動名","チーム","内容","カテゴリ","係数ID","係数名","排出係数(kg-CO2e/単位)","活動量の単位","入力した活動量","人数","片道/往復","活動量","排出量(kg-CO2e)","確認状況","メモ","移行時の注意"];
+  const cell = v => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
+  const lines = [head.join(",")].concat(listRows().map(a => { const f = factorById(a.factor_id); return [a.activity_date, a.activity_name, a.team, a.description, a.category, f?.code, f?.name, a.factor_value, a.factor_unit, a.quantity, a.people, a.trip_multiplier===2?"往復":"片道", a.activity_amount, emissionsOf(a), a.status, a.memo, a.migration_issue].map(cell).join(","); }));
+  const blob = new Blob(["﻿" + lines.join("\n")], {type:"text/csv"});
+  const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `carbon_${new Date().toLocaleDateString("sv-SE")}.csv`;
+  document.body.appendChild(link); link.click(); link.remove();
+  toast("CSV を作成しました（プレビュー画面ではダウンロードできない場合があります）");
+});
+
+/* ---------- 排出係数 ---------- */
+let editingFactor = null;
+function renderFactors(){
+  const fs = [...store.factors].sort((a,b) => (categoriesAvailable().indexOf(a.category) - categoriesAvailable().indexOf(b.category)) || a.code.localeCompare(b.code));
+  $("#factorBody").innerHTML = fs.map(f => `<tr class="clickable" data-id="${f.id}">
+    <td style="white-space:nowrap"><span class="swatch" style="background:${catColor(f.category)}"></span>${esc(f.category)}</td>
+    <td>${esc(f.name)}<div class="note">${esc(f.code)}${f.is_active===false?" · 非表示":""}</div></td>
+    <td class="num">${f.value==null?'<span class="pill warn">未登録</span>':fmtF(f.value)}</td>
+    <td style="white-space:nowrap">kg／${esc(f.activity_unit)}</td>
+    <td>${f.source_url?`<a href="${esc(f.source_url)}" target="_blank" rel="noopener">${esc(f.source_name||"出典")}</a>`:esc(f.source_name||"")}${f.version?` <span class="muted">(${esc(f.version)})</span>`:""}</td>
+    <td><button class="btn small" type="button">編集</button></td></tr>`).join("");
+  $("#catList").innerHTML = categoriesAvailable().map(c=>`<option value="${esc(c)}">`).join("");
+}
+function resetFactorForm(){ editingFactor = null; $("#factorForm").reset(); $("#xActive").checked = true; $("#factorFormTitle").textContent = "係数を追加"; $("#factorErr").textContent = ""; }
+$("#factorBody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if(!tr) return;
+  const f = factorById(Number(tr.dataset.id)); editingFactor = f.id;
+  $("#xCode").value=f.code; $("#xCat").value=f.category; $("#xSub").value=f.subcategory||""; $("#xName").value=f.name; $("#xValue").value=f.value??"";
+  $("#xUnit").value=f.activity_unit; $("#xPerPerson").checked=!!f.per_person; $("#xSource").value=f.source_name||""; $("#xUrl").value=f.source_url||"";
+  $("#xVersion").value=f.version||""; $("#xNote").value=f.note||""; $("#xActive").checked=f.is_active!==false;
+  $("#factorFormTitle").textContent = "係数を編集"; $("#xCode").focus(); });
+$("#xCancel").addEventListener("click", resetFactorForm);
+$("#factorForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = { code:$("#xCode").value.trim(), category:$("#xCat").value.trim(), subcategory:$("#xSub").value.trim()||null, name:$("#xName").value.trim(),
+    value: $("#xValue").value === "" ? null : Number($("#xValue").value), activity_unit:$("#xUnit").value.trim(), per_person:$("#xPerPerson").checked,
+    source_name:$("#xSource").value.trim()||null, source_url:$("#xUrl").value.trim()||null, version:$("#xVersion").value.trim()||null,
+    note:$("#xNote").value.trim()||null, is_active:$("#xActive").checked };
+  if(editingFactor) f.id = editingFactor;
+  try { await store.saveFactor(f); toast("係数を保存しました"); resetFactorForm(); renderFactors(); }
+  catch(err){ $("#factorErr").textContent = "保存できませんでした: " + (err.message || err); }
+});
+
+/* ---------- 起動 ---------- */
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if(!b) return; if(b.dataset.view==="entry" && !entry.id) resetEntry(); show(b.dataset.view); });
+$("#logoutBtn").addEventListener("click", () => store.logout());
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("#loginErr").textContent = "";
+  try { await store.login($("#loginEmail").value, $("#loginPassword").value); await start(); }
+  catch(err){ $("#loginErr").textContent = "ログインできませんでした。メールアドレスとパスワードを確認してください。"; }
+});
+async function start(){
+  const sess = await store.session();
+  if(!sess){ $$("main > section").forEach(s=>s.classList.add("hidden")); $("#view-login").classList.remove("hidden"); return; }
+  $("#who").textContent = sess.user?.email || "";
+  $("#logoutBtn").classList.toggle("hidden", store.mode === "demo");
+  $("#nav").classList.remove("hidden");
+  await store.load();
+  resetEntry(); show("dashboard");
+}
+(async () => {
+  $("#orgName").textContent = CFG.ORG_NAME || "";
+  try {
+    await store.init();
+    $("#demoBanner").classList.toggle("hidden", store.mode !== "demo");
+    await start();
+  } catch(err){ document.querySelector("main").insertAdjacentHTML("afterbegin", `<div class="banner">起動できませんでした: ${esc(err.message||err)}</div>`); }
+})();
+</script>
+</body>
+</html>
